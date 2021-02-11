@@ -1,17 +1,56 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { signIn, signOut, useSession, getSession } from "next-auth/client";
 import needle from "needle";
 import Card from "../components/card";
 
 export default function Process({ tweets }) {
   const [session, loading] = useSession();
-  //try to check out how to use the twitter
+  //preprocess to find ones with conversation mapping
+  const [conversationMapping, setConversationMapping] = useState({});
+  const [minConversation, setMinConversation] = useState(0);
+  const [trailingFilter, setTrailingFilter] = useState("");
+  const [filteredThreads, setFilteredThreads] = useState([]);
 
-  return <></>;
+  useEffect(() => {
+    //create mapping of conversation id based on the tweets
+    const ret = {};
+    const filtered = [];
+    for (const tweet of tweets) {
+      //add to return object if there there is not conversation id
+      if (ret[tweet.conversation_id] == null) {
+        ret[tweet.conversation_id] = [tweet];
+      } else {
+        ret[tweet.conversation_id].unshift(tweet);
+      }
+    }
+    //find longest chain in conversation and earliest to see
+    for (const thread of Object.values(ret)) {
+      if (thread.length >= minConversation) {
+        filtered.push(thread);
+      }
+    }
+    setConversationMapping(ret);
+    setFilteredThreads(filtered);
+  }, [tweets, minConversation]);
+
+  return (
+    <>
+      {filteredThreads.map((thread) => {
+        return <Card key={thread[0].conversation_id} thread={thread}></Card>;
+      })}
+    </>
+  );
 }
 
 export async function getServerSideProps({ req, res }) {
   const session = await getSession({ req });
+  if (session == null) {
+    return {
+      props: {
+        tweets: [],
+      },
+    };
+  }
   const userId = session.user.id;
   var tweets = [];
   const url = `https://api.twitter.com/2/users/${userId}/tweets`;
@@ -19,6 +58,8 @@ export async function getServerSideProps({ req, res }) {
   const getUserTweets = async () => {
     let params = {
       max_results: 100,
+      exclude: "retweets",
+      "tweet.fields": "conversation_id,created_at",
     };
 
     const options = {
@@ -58,7 +99,6 @@ export async function getServerSideProps({ req, res }) {
     if (nextToken) {
       params.pagination_token = nextToken;
     }
-    console.log(params);
 
     try {
       const resp = await needle("get", url, params, options);
