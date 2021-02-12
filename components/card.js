@@ -7,18 +7,21 @@ export default function Card({ thread }) {
 
   useEffect(() => {
     if (thread != null) {
-      console.log("thread is");
       let text = thread.map((tweet) => tweet.text).join(" ");
-      console.log(text);
       setProcessedText(text);
     }
   }, [thread]);
 
-  console.log(processedText);
   return (
     <>
       <Box w="100%" p={4} color="white" border="1px" borderColor="gray.200">
-        <Text color="gray.500">{processedText}</Text>
+        {processedText.split("\n").map((text, i) => {
+          return (
+            <Text color="gray.500" key={text + i.toString()}>
+              {text}
+            </Text>
+          );
+        })}
       </Box>
     </>
   );

@@ -8,8 +8,54 @@ export default function Process({ tweets }) {
   //preprocess to find ones with conversation mapping
   const [conversationMapping, setConversationMapping] = useState({});
   const [minConversation, setMinConversation] = useState(0);
-  const [trailingFilter, setTrailingFilter] = useState("");
+  const [trailingFilter, setTrailingFilter] = useState("\\(\\d+\\/\\d+\\)$");
   const [filteredThreads, setFilteredThreads] = useState([]);
+  const [seperateBy, setSeperateBy] = useState(" ");
+
+  //find the longest chain within thread by looking at reply to
+  function findLongestChain(thread) {
+    let maxLength = 0;
+    let curThread = null;
+    let mapping = {};
+    let idToTweet = {};
+    //find the chain by checking length we can use dp with chronological order
+    for (const tweet of thread) {
+      idToTweet[tweet.id] = tweet;
+      if (tweet.referenced_tweets == undefined) {
+        mapping[tweet.id] = 1;
+      } else {
+        //retrieve the replied to id
+        let replyToId = tweet.referenced_tweets[0].id;
+        //the number of thread is replied to plus 1
+        if (mapping[replyToId] != null) {
+          mapping[tweet.id] = mapping[replyToId] + 1;
+        } else {
+          //should never happen in normal thread
+          mapping[tweet.id] = 1;
+        }
+      }
+      //find the current mapping length and if it's > longest use it
+      let curLength = mapping[tweet.id];
+      //set current to the current tweet if it's longest
+      if (curLength > maxLength) {
+        curThread = tweet;
+        maxLength = curLength;
+      }
+    }
+    //find the max length and follow the threads to create a return object
+    let result = [];
+    //iterate with cur thread until there is nothing reply to
+    while (
+      curThread.referenced_tweets != undefined &&
+      idToTweet[curThread.referenced_tweets[0].id] != null
+    ) {
+      result.unshift(curThread);
+      curThread = idToTweet[curThread.referenced_tweets[0].id];
+    }
+    //we doen with all but last one so we unshift that
+    result.unshift(curThread);
+    return result;
+  }
 
   useEffect(() => {
     //create mapping of conversation id based on the tweets
@@ -23,10 +69,24 @@ export default function Process({ tweets }) {
         ret[tweet.conversation_id].unshift(tweet);
       }
     }
+    //use regex to remove trailing characters
+    var re = new RegExp(trailingFilter, "i");
     //find longest chain in conversation and earliest to see
     for (const thread of Object.values(ret)) {
+      console.log(thread);
       if (thread.length >= minConversation) {
-        filtered.push(thread);
+        //first process the thread to find the longest one
+        //process the thread using the regex to remove
+        let curThread = [];
+        let longestThread = findLongestChain(thread);
+        //process the text of individual text
+        longestThread.forEach((post) => {
+          let postText = post.text;
+          let filteredText = postText.replace(re, "");
+          filteredText += "\n";
+          curThread.push({ ...post, text: filteredText });
+        });
+        filtered.push(curThread);
       }
     }
     setConversationMapping(ret);
@@ -59,7 +119,7 @@ export async function getServerSideProps({ req, res }) {
     let params = {
       max_results: 100,
       exclude: "retweets",
-      "tweet.fields": "conversation_id,created_at",
+      "tweet.fields": "conversation_id,created_at,referenced_tweets",
     };
 
     const options = {
