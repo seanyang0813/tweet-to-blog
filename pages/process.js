@@ -2,13 +2,17 @@ import React, { useEffect, useState } from "react";
 import { signIn, signOut, useSession, getSession } from "next-auth/client";
 import needle from "needle";
 import Card from "../components/card";
+import FilterAccordion from "../components/filterAccordion";
 
 export default function Process({ tweets }) {
   const [session, loading] = useSession();
   //preprocess to find ones with conversation mapping
   const [conversationMapping, setConversationMapping] = useState({});
   const [minConversation, setMinConversation] = useState(0);
-  const [trailingFilter, setTrailingFilter] = useState("\\(\\d+\\/\\d+\\)$");
+  const [regexFilters, setRegexFilters] = useState([
+    "^\\d+\\/",
+    "\\(\\d+\\/\\d+\\)$",
+  ]);
   const [filteredThreads, setFilteredThreads] = useState([]);
   const [seperateBy, setSeperateBy] = useState(" ");
 
@@ -69,11 +73,8 @@ export default function Process({ tweets }) {
         ret[tweet.conversation_id].unshift(tweet);
       }
     }
-    //use regex to remove trailing characters
-    var re = new RegExp(trailingFilter, "i");
     //find longest chain in conversation and earliest to see
     for (const thread of Object.values(ret)) {
-      console.log(thread);
       if (thread.length >= minConversation) {
         //first process the thread to find the longest one
         //process the thread using the regex to remove
@@ -81,9 +82,13 @@ export default function Process({ tweets }) {
         let longestThread = findLongestChain(thread);
         //process the text of individual text
         longestThread.forEach((post) => {
-          let postText = post.text;
-          let filteredText = postText.replace(re, "");
-          filteredText += "\n";
+          let filteredText = post.text;
+          //use regex to process characters
+          for (const reText of regexFilters) {
+            var re = new RegExp(reText, "i");
+            filteredText = filteredText.replace(re, "");
+          }
+          filteredText = filteredText + "\n";
           curThread.push({ ...post, text: filteredText });
         });
         filtered.push(curThread);
@@ -95,9 +100,22 @@ export default function Process({ tweets }) {
 
   return (
     <>
-      {filteredThreads.map((thread) => {
-        return <Card key={thread[0].conversation_id} thread={thread}></Card>;
-      })}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ maxWidth: "50rem" }}>
+          <FilterAccordion></FilterAccordion>
+          {filteredThreads.map((thread) => {
+            return (
+              <Card key={thread[0].conversation_id} thread={thread}></Card>
+            );
+          })}
+        </div>
+      </div>
     </>
   );
 }
@@ -162,7 +180,6 @@ export async function getServerSideProps({ req, res }) {
 
     try {
       const resp = await needle("get", url, params, options);
-      console.log(resp.statusCode);
       if (resp.statusCode != 200) {
         return;
       }
