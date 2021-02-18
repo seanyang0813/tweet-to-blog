@@ -1,6 +1,6 @@
 import { Provider } from "next-auth/client";
 import { ChakraProvider } from "@chakra-ui/react";
-import Nav from "../components/nav.js";
+import Nav from "../components/Nav.js";
 
 export default function App({ Component, pageProps }) {
   return (

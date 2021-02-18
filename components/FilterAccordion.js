@@ -7,6 +7,7 @@ import {
   AccordionIcon,
   Box,
   Input,
+  HStack,
   Text,
   NumberInput,
   NumberInputField,
@@ -18,8 +19,28 @@ import {
   InputGroup,
   Select,
 } from "@chakra-ui/react";
+import FilterItem from "../components/FilterItem";
 
-export default function FilterAccordion({}) {
+export default function FilterAccordion({ regexFilters, setRegexFilters }) {
+  const [regexInputValue, setRegexInputValue] = useState("");
+
+  // function for removing the item with
+  function removeItem(itemValue) {
+    const removed = regexFilters.filter((filterText) => {
+      //filter out the inputs that are the same as the removed item
+      return filterText !== itemValue;
+    });
+    // set the the filter to the removed value
+    setRegexFilters(removed);
+  }
+
+  function addItem(itemValue) {
+    if (!regexFilters.includes(itemValue) && itemValue !== " ") {
+      const added = [...regexFilters, itemValue];
+      setRegexFilters(added);
+    }
+  }
+
   return (
     <>
       <Accordion allowMultiple={true}>
@@ -56,47 +77,42 @@ export default function FilterAccordion({}) {
               }}
             >
               <Box flex="1" textAlign="left">
-                Cleaning for starting
+                Regex filter format
               </Box>
               <AccordionIcon />
             </AccordionButton>
           </h2>
           <AccordionPanel pb={4}>
             <Text>
-              regular expression for removing starting character: default
-              "\d+\/" removes 1/ 2/ etc
+              regular expression for removing starting character default:
             </Text>
-            <InputGroup size="sm">
+            <Text>^\d+\/ removes 1/ 2/ etc</Text>
+            <Text>\(\d+\/\d+\)$ removes (1/10) (2/10) etc</Text>
+            <InputGroup size="sm" mb={5}>
               <InputLeftAddon children="/" />
-              <Input></Input>
+              <Input
+                value={regexInputValue}
+                onKeyPress={(ev) => {
+                  if (ev.key === "Enter") {
+                    addItem(regexInputValue);
+                    setRegexInputValue("");
+                  }
+                }}
+                onChange={(event) => setRegexInputValue(event.target.value)}
+              ></Input>
               <InputRightAddon children="/" />
             </InputGroup>
-          </AccordionPanel>
-        </AccordionItem>
-        <AccordionItem>
-          <h2>
-            <AccordionButton
-              bg="blue.200"
-              _hover={{
-                background: "blue.300",
-              }}
-            >
-              <Box flex="1" textAlign="left">
-                Filter for trailing
-              </Box>
-              <AccordionIcon />
-            </AccordionButton>
-          </h2>
-          <AccordionPanel pb={4}>
-            <Text>
-              regular expression for removing trailing character: default
-              "(\d+/d+)" removes (1/10) (2/10) etc
-            </Text>
-            <InputGroup size="sm">
-              <InputLeftAddon children="/" />
-              <Input></Input>
-              <InputRightAddon children="/" />
-            </InputGroup>
+            <HStack spacing={2}>
+              {regexFilters.map((filter) => {
+                return (
+                  <FilterItem
+                    removeItem={removeItem}
+                    regexValue={filter}
+                    key={filter}
+                  ></FilterItem>
+                );
+              })}
+            </HStack>
           </AccordionPanel>
         </AccordionItem>
         <AccordionItem>

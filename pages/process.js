@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { signIn, signOut, useSession, getSession } from "next-auth/client";
 import needle from "needle";
-import Card from "../components/card";
-import FilterAccordion from "../components/filterAccordion";
+import Card from "../components/Card";
+import FilterAccordion from "../components/FilterAccordion";
 
 export default function Process({ tweets }) {
   const [session, loading] = useSession();
@@ -108,7 +108,10 @@ export default function Process({ tweets }) {
         }}
       >
         <div style={{ maxWidth: "50rem" }}>
-          <FilterAccordion></FilterAccordion>
+          <FilterAccordion
+            regexFilters={regexFilters}
+            setRegexFilters={setRegexFilters}
+          ></FilterAccordion>
           {filteredThreads.map((thread) => {
             return (
               <Card key={thread[0].conversation_id} thread={thread}></Card>
