@@ -34,7 +34,7 @@ export default function Process({ tweets }) {
         if (mapping[replyToId] != null) {
           mapping[tweet.id] = mapping[replyToId] + 1;
         } else {
-          //should never happen in normal thread
+          //if it's reply to someone else's post
           mapping[tweet.id] = 1;
         }
       }
